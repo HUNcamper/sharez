@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<!--
+// Copyright 2017 Selim Nahimi
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+-->
+<html>
+<head>
+	<title>ShareZ</title>
+	<meta charset="utf-8">
+	<link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+	<style>
+	.page {
+		min-height: 100vh;
+	}
+	
+	h2 {
+		color: #262626;
+		font-weight: bold;
+	}
+	
+	</style>
+	
+	<div class="page">
+		<div class="jumbotron text-center">
+			<h1>ShareZ</h1>
+			<p>Storing a total of <%= amount %> files, at <%= size %> MBs</p> 
+		</div>
+		  
+		<div class="container">
+			<h2>Information</h2>
+			<div class="row">
+				<div class="col-sm-4">
+					<h3><span class="glyphicon glyphicon-book"></span> About...</h3>
+					<p>This service is used to <strong>quickly upload and view small files</strong>, like images, text, smaller archives, short videos, sound files or anything that doesn't run over 50 MBs.<br>It was written in <a href="https://nodejs.org/en/" target="_blank">NodeJS</a>, and uses <a href="https://aws.amazon.com/s3/" target="_blank">Amazon S3</a> for it's storage <i>(planned)</i>.</p>
+				</div>
+				<div class="col-sm-4">
+					<h3><span class="glyphicon glyphicon-tasks"></span> Can I use it?</h3>
+					<p><strong>Not yet.</strong> Currently the service is unstable and could be exposed to heavy insecurity.</p>
+				</div>
+				<div class="col-sm-4">
+					<h3><span class="glyphicon glyphicon-calendar"></span> When will it be released?</h3>        
+					<p><strong>Not in the near future</strong>, if ever.</p>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-sm-4">
+					<h3><span class="glyphicon glyphicon-align-left"></span> Open-Source?</h3>
+					<p><strong>Soon.</strong> The code is not yet complete.</p>
+				</div>
+				<div class="col-sm-4">
+					<h3><span class="glyphicon glyphicon-warning-sign"></span> Something infringes my rights!</h3>
+					<p><strong>Contact me immediately!</strong> This service is NOT for sharing illegal content. I will make sure to remove the file.</p>
+				</div>
+				<div class="col-sm-4">
+					<h3><span class="glyphicon glyphicon-user"></span> Where can I contact you?</h3>        
+					<p>You can contact me on:<br><a target="_blank" href="http://steamcommunity.com/id/huncamper">Steam</a></p>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="page" style="background-color: #F2F2F2">
+		<div class="container">
+			<h2>Upload a file</h2>
+			<div class="container">
+				<form id="form" action="/upload" method="post" enctype="multipart/form-data">
+					<div class="form-group" style="padding-top: 30px">
+						<label for="example-text-input" class="col-2 col-form-label">API key</label>
+						<div class="col-10">
+							<input class="form-control" type="text" value="" id="api">
+							<small id="apiHelp" class="form-text text-muted" aria-describedby="apiHelp">The API key you've been assigned with.</small>
+						</div>
+						<p></p>
+						<label for="exampleInputFile">File</label>
+						<input type="file" class="form-control-file" id="fileInput" aria-describedby="fileHelp" name="files[]">
+						<small id="fileHelp" class="form-text text-muted">Select the file you want to upload</small>
+						<p></p>
+						
+						<p><button id="upload" type="submit" class="btn btn-primary" value="Upload">Upload</button></p>
+						
+						<div class="progress">
+							<div id="uploadProgress" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%">
+								0%
+							</div>
+						</div>
+						
+						<div id="alert_placeholder"></div>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	
+	<script>
+	// hook api textbox change to send GET data
+	jQuery('#api').on('input propertychange paste', function() {
+		$('#form').attr('action', '/upload?api=' + $('#api').val());
+	});
+	
+	$(function() {
+		$('#form').attr('action', '/upload?api=' + $('#api').val());
+	});
+	
+	bootstrap_alert = function() {}
+	bootstrap_alert.warning = function(message) {
+		$('#alert_placeholder').append('<div class="alert alert-warning fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
+	}
+	bootstrap_alert.error = function(message) {
+		$('#alert_placeholder').append('<div class="alert alert-danger fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
+	}
+	bootstrap_alert.success = function(message) {
+		$('#alert_placeholder').append('<div class="alert alert-success fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
+	}
+	
+	// AJAX FORM
+	
+	var form = document.getElementById('form');
+	var fileSelect = document.getElementById('fileInput');
+	var uploadButton = document.getElementById('upload');
+	
+	
+	form.onsubmit = function(event) {
+		event.preventDefault();
+
+		// Update button text.
+		uploadButton.innerHTML = 'Uploading...';
+		
+		// Get the selected files from the input.
+		var files = fileSelect.files;
+		
+		// Create a new FormData object.
+		var formData = new FormData();
+		
+		var totalSize = 0;
+		
+		// Loop through each of the selected files.
+		for (var i = 0; i < files.length; i++) {
+			var file = files[i];
+
+			// Check the file size
+			if (file.size > 50000000) {
+				bootstrap_alert.error('<strong>Failed to upload!</strong> max. upload size: 50 MBs');
+				uploadButton.innerHTML = 'Upload';
+				return;
+			}
+			
+			totalSize += file.size;
+
+			// Add the file to the request.
+			formData.append('files[]', file, file.name);
+		}
+		
+		// Set up the request.
+		var xhr = new XMLHttpRequest();
+		
+		var url = '/upload?api='+$('#api').val();
+		
+		// Check progress
+		xhr.upload.onprogress = function (e) {
+			if (e.lengthComputable) {
+				var progress = Math.ceil((e.loaded / totalSize) * 100)-1;
+				
+				$("#uploadProgress").attr('aria-valuemax', totalSize);
+				$("#uploadProgress").attr('aria-valuenow', progress);
+				$("#uploadProgress").html(progress + "%");
+				$('#uploadProgress').css('width', progress + '%');
+			}
+		}
+		
+		// Open the connection.
+		xhr.open('POST', url, true);
+		
+		// Set up a handler for when the request finishes.
+		xhr.onload = function () {
+			if (xhr.status === 200) {
+			// File(s) uploaded.
+				uploadButton.innerHTML = 'Upload';
+				bootstrap_alert.success('<strong>Upload successful!</strong> <a target="_blank" href="'+xhr.response+'" class="alert-link">' + xhr.response + '</a>');
+			} else {
+				uploadButton.innerHTML = 'Upload';
+				bootstrap_alert.error('<strong>Failed to upload!</strong> ' + xhr.status + ': ' + xhr.response);
+			}
+			$("#uploadProgress").attr('aria-valuemax', 100);
+			$("#uploadProgress").attr('aria-valuenow', 0);
+			$("#uploadProgress").html("0%");
+			$('#uploadProgress').css('width', '0%');
+		};
+		
+		// Send the Data.
+		xhr.send(formData);
+	}
+	
+	</script>
+</body>
+</html>

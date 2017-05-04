@@ -1,0 +1,14 @@
+{
+	"port":					3000,
+	"maxFileSize":			50000000,
+	"maxFilesPerUpload":	1,
+	"api":					"235rui3tdsf6s213guwfsd76234",
+	"url":					"http://example.com/",
+	"database":
+	{
+		"host":		"",
+		"user":		"",
+		"pass":		"",
+		"db":		""
+	}
+}
