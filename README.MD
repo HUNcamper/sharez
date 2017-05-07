@@ -9,6 +9,12 @@ A file managing client, written in **NodeJS**. Currently handles files via a loc
 2. npm install ejs
 3. npm install mysql
 4. npm install dicer
+5. In case you want to use Amazon S3: npm install aws-sdk
+
+### In the config file:
+You will find a value called "**file_handling**".
+Setting this to 0 will save the files in the filesystem
+Setting this to 1 will upload the files onto an Amazon S3 server *(further settings are in the config)*
 
 
 ### To set up a MySQL table:

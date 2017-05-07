@@ -1,14 +1,23 @@
 {
 	"port":					3000,
 	"maxFileSize":			50000000,
-	"maxFilesPerUpload":	1,
-	"api":					"235rui3tdsf6s213guwfsd76234",
-	"url":					"http://example.com/",
+	"maxFilesPerUpload":	0,
+	"api":					"RANDOM-API-KEY",
+	"url":					"https://example.com/",
+	"file_handling":		"1",
 	"database":
 	{
 		"host":		"",
 		"user":		"",
 		"pass":		"",
 		"db":		""
+	},
+	"S3":
+	{
+		"bucket":		"",
+		"accesskey":	"",
+		"privatekey":	"",
+		"endpoint_url":	"s3.eu-central-1.amazonaws.com",
+		"ACL":			"public-read"
 	}
 }

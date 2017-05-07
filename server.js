@@ -16,21 +16,30 @@
 // ** A server for storing files
 
 
-
 //// ** Setup
+// Config Load
+const config		=	require('./config.json');	// config file
+
 // Dependencies
+const fs			=	require('fs');				
+const path			=	require('path');			
+const http			=	require('http');			
+const crypto		=	require('crypto');			
 const express		=	require('express');			// npm install express
 const ejs			=	require('ejs');				// npm install ejs
 const cookies		=	require('cookies');			// npm install cookies
 const mysql			=	require('mysql');			// npm install mysql
 const dicer			=	require('dicer');			// npm install dicer
-const fs			=	require('fs');				
-const path			=	require('path');			
-const http			=	require('http');			
-const crypto		=	require('crypto');			
-var AWS = require('aws-sdk');
-// Config Load
-const config		=	require('./config.json');	// config file
+
+// Check if S3 or filesystem storing is enabled
+if(config.file_handling == 1) {
+	const AWS		=	require('aws-sdk');			// npm install aws-sdk
+	const S3		= 	require('./lib/fileS3.js');	// Check code for source!
+	
+} else if(config.file_handling != 0) {
+	console.error('The file_handling value can only be 0 (filesystem) or 1 (Amazon S3)!');
+	process.exit(1);
+}
 
 // Regexes
 // Content-Disposition filename regex: "filename=xxx"
@@ -85,23 +94,7 @@ app.use(express.static(__dirname + '/public/uploads'));
 // Main Page
 app.get('/', function(req, res){
 	fs.readFile('public/page/index.html', 'utf-8', function(err, content) {
-		if (err) { console.log(err); return res.status(500).send('Internal Server Error'); }
-		
-		var size = 0, amount = 0;
-		fs.readdir('public/uploads/', function(err, files) {
-			if(err) console.error('Error occurred while counting files');
-			files.forEach(file => {
-				let stats = fs.statSync('public/uploads/'+file);
-				size += stats.size;
-				amount++;
-			});
-			
-			size = (size / 1024 / 1024).toFixed(2);
-			var renderedHtml = ejs.render(content, {amount: amount, size: size});  //get redered HTML code
-			res.send(renderedHtml);
-		});
-		
-		
+		res.send(content);
 	});
 });
 
@@ -200,13 +193,10 @@ app.all('/upload', function(req, res){
 			}
 			
 			// Send success response
-			let url = config.url+data[0].file;
-			connection.query("INSERT INTO files (file, api, date, name, size) VALUES (?, ?, NOW(), ?, ?)", [data[0].file, api, data[0].name, data[0].size],
+			let url = config.url+data[0].url;
+			connection.query("INSERT INTO files (file, api, date, name, size) VALUES (?, ?, NOW(), ?, ?)", [data[0].url, api, data[0].name, data[0].size],
 			function (error, results, fields) {
 				if (error) {
-					fs.unlink('public/uploads/'+data[0].file, err => {
-						if(err) console.error('failed to delete ' + data[0].file + ': ' + err);
-					});
 					console.log("MySQL query failed: " + error);
 					return res.status(500).send("MySQL query failed");
 				}
@@ -228,39 +218,71 @@ var server = app.listen(config.port, function(){
   console.log('Server listening on port ' + config.port);
 });
 
-
-
+// Code credit: https://github.com/whats-this/api/
 /**
- * Batch upload and return an array of metadata about each object.
+ * Batch upload to S3 and return an array of metadata about each object.
  * @param {object[]} files File definitions
  * @return {Promise<object[]>} Output metadata
  */
 function batchUpload (files) {
-	return new Promise((resolve, reject) => {
-		
-		let completed = [];
-		
-		/**
-		 * Push data to completed and try to resolve the promise.
-		 * @param {object} data
-		 */
-		function push (data) {
-			completed.push(data);
-			if (completed.length === files.length) resolve(completed);
-		}
-		
-		files.forEach(file => {
-			const seed = String(Math.floor(Math.random() * 10) + Date.now());
-			let hash = crypto.createHash('md5').update(seed).digest('hex').substr(2, 6);
-			fs.writeFile('public/uploads/'+hash+"."+file.ext, file.data, 'binary', err => {
-				if (err) throw err;
-				console.log('file saved: ' + hash+"."+file.ext);
-			});
-			push({
-				file: hash+"."+file.ext,
+  return new Promise((resolve, reject) => {
+    let completed = [];
+
+    /**
+     * Push data to completed and try to resolve the promise.
+     * @param {object} data
+     */
+    function push (data) {
+      completed.push(data);
+      if (completed.length === files.length) resolve(completed);
+    }
+
+    // Iterate through all files and upload/save them
+    files.forEach(file => {
+      let seed = String(Math.floor(Math.random() * 10) + Date.now());
+      let hash = crypto.createHash('md5').update(seed).digest('hex').substr(2, 6);
+      const key = hash + (file.ext ? '.' + file.ext : '');
+	  
+	  if(config.file_handling == 1) {
+		// Upload the file to an Amazon S3 bucket
+		  S3.putObject({
+			Bucket: config['S3'].bucket,
+			ACL: config['S3'].ACL,
+			Key: key,
+			Body: file.data,
+			ContentType: file.mime || 'application/octet-stream'
+		  }, (err, data) => {
+			if (err) {
+			  console.error('Failed to upload file to S3:');
+			  console.error(err);
+			  return push({
+				error: true,
 				name: file.filename,
-				size: file.data.length
+				errorcode: 500,
+				description: 'internal server error'
+			  });
+			}
+
+			push({
+			  hash: crypto.createHash('sha1').update(file.data).digest('hex'),
+			  name: file.filename,
+			  url: key,
+			  size: file.data.length
 			});
+		  });
+	  } else {
+		// Save the file into the uploads folder
+		fs.writeFile('public/uploads/'+key, file.data, 'binary', err => {
+			if (err) throw err;
+			console.log('file saved: ' + hash+"."+file.ext);
 		});
-	});
+		push({
+			hash: crypto.createHash('sha1').update(file.data).digest('hex'),
+			name: file.filename,
+			url: key,
+			size: file.data.length
+		});
+	  }
+    });
+  });
 }

@@ -40,7 +40,7 @@
 	<div class="page">
 		<div class="jumbotron text-center">
 			<h1>ShareZ</h1>
-			<p>Storing a total of <%= amount %> files, at <%= size %> MBs</p> 
+			<p>A fast way to share files</p> 
 		</div>
 		  
 		<div class="container">
@@ -120,13 +120,13 @@
 	
 	bootstrap_alert = function() {}
 	bootstrap_alert.warning = function(message) {
-		$('#alert_placeholder').append('<div class="alert alert-warning fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
+		$('#alert_placeholder').prepend('<div class="alert alert-warning fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
 	}
 	bootstrap_alert.error = function(message) {
-		$('#alert_placeholder').append('<div class="alert alert-danger fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
+		$('#alert_placeholder').prepend('<div class="alert alert-danger fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
 	}
 	bootstrap_alert.success = function(message) {
-		$('#alert_placeholder').append('<div class="alert alert-success fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
+		$('#alert_placeholder').prepend('<div class="alert alert-success fade in"><a class="close" data-dismiss="alert">×</a><span>'+message+'</span></div>')
 	}
 	
 	// AJAX FORM
